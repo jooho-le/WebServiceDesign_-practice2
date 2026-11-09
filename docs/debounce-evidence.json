@@ -1,0 +1,10 @@
+{
+  "typingIntervalMs": 50,
+  "debounceMs": 300,
+  "typingRequests": 1,
+  "manualSearchRequests": 1,
+  "requests": [
+    "http://127.0.0.1:3000/api/posts?limit=10&search=Redis&page=1&sort=latest",
+    "http://127.0.0.1:3000/api/posts?limit=10&search=AbortController&page=1&sort=latest"
+  ]
+}

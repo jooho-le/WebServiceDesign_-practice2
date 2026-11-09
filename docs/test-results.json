@@ -1,0 +1,560 @@
+{
+  "config": {
+    "argv": [
+      "/Users/leejooho/.nvm/versions/node/v20.19.5/bin/node",
+      "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/node_modules/.bin/playwright",
+      "test"
+    ],
+    "configFile": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/playwright.config.js",
+    "rootDir": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.spec.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "name": "",
+        "testDir": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/tests",
+        "snapshotDir": "/private/var/folders/0s/bddwc_sx7k1bpv5x_qt5j5v80000gn/T/week09-clean-pgj5o805/project/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.spec.js",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://127.0.0.1:3000",
+          "channel": "chrome",
+          "viewport": {
+            "width": 1500,
+            "height": 1000
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": ""
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "docs/test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.65.0",
+    "workers": 1,
+    "webServer": {
+      "command": "node server.js",
+      "url": "http://127.0.0.1:3000",
+      "reuseExistingServer": false
+    }
+  },
+  "suites": [
+    {
+      "title": "board.spec.js",
+      "file": "board.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "API: 검색·정렬·상속 속성·파라미터·meta",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 136,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:17.185Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-9e35216f57a716c4a405",
+          "file": "board.spec.js",
+          "line": 16,
+          "column": 1
+        },
+        {
+          "title": "API: 커서 검색 후 전체 순회·누락·중복·limit+1",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 87,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:17.336Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-ed9b99796d29562fe462",
+          "file": "board.spec.js",
+          "line": 57,
+          "column": 1
+        },
+        {
+          "title": "화면: 검색·정렬 초기화와 URL 새로고침·뒤로가기·페이지 보정",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1885,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:17.428Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-bc58c5d7b1b06ce85f10",
+          "file": "board.spec.js",
+          "line": 81,
+          "column": 1
+        },
+        {
+          "title": "화면: 3페이지에서 정렬 변경 시 1페이지·앞으로가기·본문 검색",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1161,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:20.123Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-0ef9ae27f11552bcb312",
+          "file": "board.spec.js",
+          "line": 96,
+          "column": 1
+        },
+        {
+          "title": "화면: 커서 검색 변경·누적·마지막 버튼·모드 복원",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2850,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:21.303Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-cf5c7e7f01b9bca74516",
+          "file": "board.spec.js",
+          "line": 104,
+          "column": 1
+        },
+        {
+          "title": "비동기: 300ms 디바운스·조회 버튼 중복 방지",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2230,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:24.163Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-a141edaf64602e895c22",
+          "file": "board.spec.js",
+          "line": 119,
+          "column": 1
+        },
+        {
+          "title": "비동기: 느린 응답 취소·최종 결과 유지·AbortError",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2898,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:26.408Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-891f37edf21d3466f1b8",
+          "file": "board.spec.js",
+          "line": 130,
+          "column": 1
+        },
+        {
+          "title": "비동기: 취소를 무시하는 응답도 화면을 덮어쓰지 않음",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2616,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:29.319Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-6c72204c404c979c0168",
+          "file": "board.spec.js",
+          "line": 146,
+          "column": 1
+        },
+        {
+          "title": "검토 보완: 커서 limit 상한·연속 클릭·오프셋 limit 유지",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 863,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:31.952Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-ca54872ffe44914a51f9",
+          "file": "board.spec.js",
+          "line": 159,
+          "column": 1
+        },
+        {
+          "title": "검토 보완: 한글 조합 중 요청 없음·조합 완료 후 300ms",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1765,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:32.825Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-4cdac50e6746d3a63efa",
+          "file": "board.spec.js",
+          "line": 175,
+          "column": 1
+        },
+        {
+          "title": "검토 보완: HTTP 오류 안내와 조회 재시도",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1733,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:34.603Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-eef5d44a6e5827384515",
+          "file": "board.spec.js",
+          "line": 202,
+          "column": 1
+        },
+        {
+          "title": "최종 확인: 검색 대기 중 뒤로가기 후 이전 상태 유지",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1800,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:36.349Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-3ada94e86a620eabde12",
+          "file": "board.spec.js",
+          "line": 210,
+          "column": 1
+        },
+        {
+          "title": "최종 확인: 커서의 늦은 응답이 오프셋 화면을 바꾸지 않음",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2121,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-07T18:25:38.160Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "47c1464f561ce292309a-6aa77eb52463133f2ebb",
+          "file": "board.spec.js",
+          "line": 224,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-07T18:25:16.775Z",
+    "duration": 23611.315000000002,
+    "expected": 13,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

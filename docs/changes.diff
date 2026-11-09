@@ -1,0 +1,757 @@
+--- original/server.js
++++ improved/server.js
+@@ -1,15 +1,7 @@
+ /**
+- * 웹서비스설계 9주차 실습 · 백엔드 API 서버 (Node.js Express + 1,000건 대량 데이터셋)
+- * 3학년 전공심화:
+- *   1) 방어적 파라미터 파싱 (parseInt 10진수, 음수 방어, Math.min 100개 상한)
+- *   2) ORDER BY 화이트리스트 사전 매핑 (SQL Injection 방어 & id DESC 동점자 결합)
+- *   3) 오프셋 페이징 API (/api/posts) + 표준 meta Envelope
+- *   4) 고성능 커서 기반(Keyset) 페이징 API (/api/posts/cursor)
+- *
+- * 실행 방법:
+- *   1) npm install express
+- *   2) node server.js
+- *   3) 브라우저에서 http://localhost:3000 접속
++ * 웹서비스설계 9주차 실습: 검색·정렬과 오프셋/커서 페이지네이션
++ * npm ci → node server.js → http://localhost:3000
++ * 데이터는 1,000건의 배열이며 실제 DB를 사용하지 않습니다.
+  */
+ 
+ const express = require('express');
+@@ -17,10 +9,11 @@
+ const app = express();
+ const PORT = 3000;
+ 
+-app.use(express.static(__dirname)); // 현재 폴더의 index.html 정적 서빙
++// 제출 자료·서버 소스·node_modules를 정적 공개하지 않습니다.
++app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+ app.use(express.json());
+ 
+-// 1,000건의 대용량 더미 게시글 데이터 생성 (1~1000)
++// 실습용 게시글 1,000건 생성 (ID 1000~1)
+ const TOPICS = [
+   'B-Tree 인덱스 구조와 LIKE %kw% 검색 튜닝 실무',
+   '커서 기반(Keyset) 페이지네이션 O(log N) 탐색 원리',
+@@ -41,24 +34,37 @@
+   const id = 1000 - i;
+   const topic = TOPICS[i % TOPICS.length];
+   const author = AUTHORS[i % AUTHORS.length];
+-  const views = Math.floor(Math.random() * 5000) + 10;
+-  const dateNum = String(1000 - i).padStart(4, '0');
++  // 재실행해도 동일하며 동점 정렬 검증이 가능한 데이터
++  const views = ((id * 37) % 101) * 10 + 10;
+   return {
+     id,
+     title: `[#${id}] ${topic}`,
+     content: `게시글 ${id}번의 상세 본문 데이터입니다. DB 인덱스와 페이징 최적화를 실습합니다.`,
+     author,
+     views,
+-    createdAt: `2026-${(10 - Math.floor(i / 150)).toString().padStart(2, '0')}-${((i % 28) + 1).toString().padStart(2, '0')}`
++    createdAt: new Date(Date.UTC(2026, 0, 1) + (id - 1) * 3600000).toISOString().slice(0, 10)
+   };
+ });
+ 
+-// 화이트리스트 정렬 정의 (동점자 방지 id 결합)
++// 허용된 정렬 방식. 조회수가 같으면 ID가 큰 글부터 표시합니다.
+ const SORT_WHITELIST = Object.freeze({
+   latest: (a, b) => b.id - a.id,
+   oldest: (a, b) => a.id - b.id,
+   views: (a, b) => (b.views !== a.views ? b.views - a.views : b.id - a.id)
+ });
++
++// 쿼리 배열/객체도 문자열 메서드에 전달하지 않도록 정규화합니다.
++function positiveInt(value, fallback, max = Number.MAX_SAFE_INTEGER) {
++  if (typeof value !== 'string' || !/^\d+$/.test(value)) return fallback;
++  const parsed = Number(value);
++  return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
++}
++function searchTerm(value) {
++  return typeof value === 'string' ? value.trim().toLowerCase() : '';
++}
++function matchesSearch(post, search) {
++  return post.title.toLowerCase().includes(search) || post.content.toLowerCase().includes(search);
++}
+ 
+ // ==========================================
+ // 1. 오프셋 기반 페이지네이션 API
+@@ -68,21 +74,17 @@
+   const startTime = process.hrtime();
+ 
+   // 파라미터 정제 및 방어 코딩
+-  const rawPage = parseInt(req.query.page, 10);
+-  const rawLimit = parseInt(req.query.limit, 10);
+-  const page = (!isNaN(rawPage) && rawPage > 0) ? rawPage : 1;
+-  const limit = (!isNaN(rawLimit) && rawLimit > 0) ? Math.min(rawLimit, 100) : 10;
+-  const search = (req.query.search || '').trim().toLowerCase();
+-  const sortKey = req.query.sort || 'latest';
++  const page = positiveInt(req.query.page, 1);
++  const limit = positiveInt(req.query.limit, 10, 100);
++  const search = searchTerm(req.query.search);
++  const sortKey = typeof req.query.sort === 'string' && Object.hasOwn(SORT_WHITELIST, req.query.sort)
++    ? req.query.sort : 'latest';
+ 
+-  // 1) 검색 필터링 (WHERE title LIKE '%search%')
+-  let filtered = POSTS.filter(p => {
+-    if (!search) return true;
+-    return p.title.toLowerCase().includes(search) || p.content.toLowerCase().includes(search);
+-  });
++  // 1) 제목·본문에서 검색
++  const filtered = POSTS.filter(p => matchesSearch(p, search));
+ 
+   // 2) 화이트리스트 정렬 (ORDER BY ...)
+-  const sortComparator = SORT_WHITELIST[sortKey] || SORT_WHITELIST.latest;
++  const sortComparator = SORT_WHITELIST[sortKey];
+   filtered.sort(sortComparator);
+ 
+   // 3) 오프셋 계산 및 데이터 슬라이싱
+@@ -100,6 +102,7 @@
+     items,
+     meta: {
+       page: safePage,
++      sort: sortKey,
+       limit,
+       totalCount,
+       totalPages,
+@@ -117,16 +120,15 @@
+ app.get('/api/posts/cursor', (req, res) => {
+   const startTime = process.hrtime();
+ 
+-  const rawCursor = parseInt(req.query.cursor, 10);
+-  const limit = Math.min(Math.max(1, parseInt(req.query.limit, 10) || 10), 50);
++  const cursor = positiveInt(req.query.cursor, null);
++  const limit = positiveInt(req.query.limit, 10, 50);
++  const search = searchTerm(req.query.search);
+ 
+-  // 커서가 있으면 해당 id보다 작은 항목들만 탐색 (WHERE id < ? ORDER BY id DESC)
+-  let candidate = POSTS;
+-  if (!isNaN(rawCursor) && rawCursor > 0) {
+-    candidate = POSTS.filter(p => p.id < rawCursor);
+-  }
++  // 검색과 커서 조건을 먼저 적용하고 ID 내림차순으로 고정합니다.
++  const candidate = POSTS.filter(p => matchesSearch(p, search) && (cursor === null || p.id < cursor))
++    .sort((a, b) => b.id - a.id);
+ 
+-  // limit + 1개를 조회하여 다음 데이터 존재 여부(hasNext) 판단 (COUNT(*) 제거)
++  // 한 개를 더 확인해 다음 결과가 있는지 판단합니다.
+   const sliced = candidate.slice(0, limit + 1);
+   const hasNext = sliced.length > limit;
+   const items = hasNext ? sliced.slice(0, limit) : sliced;
+@@ -139,7 +141,7 @@
+   res.json({
+     items,
+     meta: {
+-      cursor: rawCursor || null,
++      cursor,
+       nextCursor,
+       limit,
+       hasNext,
+@@ -150,8 +152,8 @@
+ 
+ app.listen(PORT, () => {
+   console.log(`====================================================`);
+-  console.log(`🚀 웹서비스설계 9주차 3학년 전공 실습 서버 구동 완료`);
+-  console.log(`📡 URL: http://localhost:${PORT}`);
+-  console.log(`📦 데이터: 1,000건의 인메모리 게시글 로드 완료`);
++  console.log(`웹서비스설계 9주차 실습 서버 실행`);
++  console.log(`URL: http://localhost:${PORT}`);
++  console.log(`데이터: 1,000건의 인메모리 게시글 로드 완료`);
+   console.log(`====================================================`);
+ });
+--- original/index.html
++++ improved/index.html
+@@ -3,7 +3,7 @@
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+-  <title>웹서비스설계 9주차 실습 · 대용량 검색·정렬·페이징 라이브 시스템</title>
++  <title>검색·정렬·페이지네이션 실습</title>
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+   <style>
+     :root {
+@@ -116,6 +116,8 @@
+       font-weight: 700;
+       cursor: pointer;
+     }
++    button:disabled { opacity: .5; cursor: not-allowed; }
++    @media (max-width: 900px) { .wrapper { grid-template-columns: 1fr; } body { padding: 12px; } .controls { flex-wrap: wrap; } }
+     .btn:hover { background: #0052a3; }
+ 
+     /* Data Table */
+@@ -212,8 +214,8 @@
+   <!-- 좌측: 게시판 클라이언트 -->
+   <div class="panel">
+     <header class="panel-head">
+-      <h1>게시판 클라이언트 (SPA 환경)</h1>
+-      <p>1,000건의 대용량 데이터셋에서 실시간 검색, 동적 정렬, 오프셋 vs 커서 페이징을 테스트합니다.</p>
++      <h1>게시판</h1>
++      <p>게시글 1,000건을 검색하고 두 가지 페이지네이션 방식을 비교합니다.</p>
+     </header>
+ 
+     <div class="tab-bar">
+@@ -222,15 +224,17 @@
+     </div>
+ 
+     <div class="controls">
+-      <input type="text" id="searchInput" class="input-text" placeholder="검색어 입력 (300ms 디바운스 적용)...">
+-      <select id="sortSelect" class="select-box">
+-        <option value="latest">최신순 (created_at DESC, id DESC)</option>
++      <input aria-label="제목·본문 검색" type="text" id="searchInput" class="input-text" placeholder="검색어 입력 (300ms 디바운스 적용)...">
++      <select aria-label="정렬" id="sortSelect" class="select-box">
++        <option value="latest">최신순 (ID 내림차순)</option>
+         <option value="views">조회수순 (views DESC, id DESC)</option>
+-        <option value="oldest">오래된순 (created_at ASC, id ASC)</option>
++        <option value="oldest">오래된순 (ID 오름차순)</option>
+       </select>
+       <button class="btn" onclick="applySearch()">조회</button>
+     </div>
+ 
++    <p id="status" role="status" aria-live="polite"></p>
++    <p id="modeNote">최신순: ID 내림차순 · 오래된순: ID 오름차순</p>
+     <div class="table-wrap">
+       <table class="data-table">
+         <thead>
+@@ -260,8 +264,8 @@
+   <!-- 우측: 개발자 실시간 검사기 (DevTools) -->
+   <div class="panel">
+     <header class="panel-head">
+-      <h1>백엔드 &amp; DB 파이프라인 검사기</h1>
+-      <p>프론트엔드 상태 변화에 따라 실제로 백엔드에 전송된 요청과 실행된 SQL을 모니터링합니다.</p>
++      <h1>요청·응답 확인</h1>
++      <p>실제 요청과 응답을 표시합니다. SQL은 배열 처리 과정을 설명하기 위한 예시입니다.</p>
+     </header>
+ 
+     <div>
+@@ -273,228 +277,239 @@
+     </div>
+ 
+     <div>
+-      <div class="inspector-title">② 데이터베이스 실행 SQL (보안 파라미터 바인딩)</div>
+-      <div class="code-block" style="color:#0066cc; font-weight:600;" id="inspectSql">SELECT * FROM posts ORDER BY created_at DESC, id DESC LIMIT 10 OFFSET 0;</div>
++      <div class="inspector-title">② 설명용 SQL (실제 DB 실행 없음 · ?는 바인딩 위치)</div>
++      <div class="code-block" style="color:#0066cc; font-weight:600;" id="inspectSql">설명용 SQL을 불러오는 중…</div>
+     </div>
+ 
+     <div>
+-      <div class="inspector-title">③ 백엔드 표준 Envelope JSON 응답</div>
++      <div class="inspector-title">③ JSON 응답</div>
+       <div class="code-block json" id="inspectJson">{ "items": [], "meta": {} }</div>
+     </div>
+ 
+     <div style="background:var(--light); border:1px solid var(--line); border-radius:8px; padding:14px; font-size:13.5px; color:var(--muted); line-height:1.6;">
+-      <b>💡 실무 엔지니어링 체크포인트:</b><br>
+-      • 검색창에 빠르게 타자를 칠 때 300ms 디바운스로 단 1회만 호출되는지 확인하세요.<br>
+-      • 새 검색어를 칠 때 이전 진행 중이던 비동기 fetch가 <code>AbortController</code>로 안전하게 취소됩니다.<br>
+-      • 주소창의 <code>URLSearchParams</code>가 동기화되어 뒤로 가기 및 새로고침 시에도 상태가 복원됩니다.
++      <b>확인할 항목</b><br>
++      • 빠르게 연속 입력한 뒤 검색 요청이 한 번만 발생하는지 확인합니다.<br>
++      • 검색어를 바꾸면 이전 요청을 취소하고 마지막 검색 결과를 표시합니다.<br>
++      • 오프셋 모드에서 새로고침·뒤로 가기 후 검색어·정렬·페이지를 확인합니다.
+     </div>
+   </div>
+ </div>
+ 
+ <script>
+-  let mode = 'offset'; // 'offset' or 'cursor'
+-  let state = {
+-    page: 1,
+-    limit: 10,
+-    sort: 'latest',
+-    search: '',
+-    cursor: null,
+-    hasNext: true
+-  };
+-  let cursorPosts = []; // 커서 모드 누적 아이템
++  let mode = 'offset';
++  const state = { page: 1, limit: 10, sort: 'latest', search: '', cursor: null, hasNext: true };
++  let cursorPosts = [];
+   let currentAbortController = null;
+   let debounceTimer = null;
+-
+-  // 모드 변경 (오프셋 vs 커서)
+-  function switchMode(newMode) {
+-    mode = newMode;
+-    document.getElementById('tabOffset').classList.toggle('active', mode === 'offset');
+-    document.getElementById('tabCursor').classList.toggle('active', mode === 'cursor');
+-    document.getElementById('paginationBar').style.display = (mode === 'offset') ? 'flex' : 'none';
+-    document.getElementById('cursorMoreWrap').style.display = (mode === 'cursor') ? 'flex' : 'none';
+-
++  let requestVersion = 0;
++  let loading = false;
++  let isComposing = false;
++  const $ = id => document.getElementById(id);
++  const sorts = ['latest', 'oldest', 'views'];
++  function positiveInt(value, fallback, max = Number.MAX_SAFE_INTEGER) {
++    if (!/^\d+$/.test(value || '')) return fallback;
++    const n = Number(value);
++    return Number.isSafeInteger(n) && n > 0 ? Math.min(n, max) : fallback;
++  }
++  function invalidateRequest() {
++    requestVersion++;
++    currentAbortController?.abort();
++    loading = false;
++  }
++  function cancelPending() {
++    clearTimeout(debounceTimer);
++    invalidateRequest();
++  }
++  function resetList() {
+     state.page = 1;
+     state.cursor = null;
++    state.hasNext = true;
+     cursorPosts = [];
+-    loadData(true);
+-  }
+-
+-  // 데이터 로드
++    if (mode === 'cursor') $('tableBody').replaceChildren();
++  }
++  function updateMode() {
++    $('tabOffset').classList.toggle('active', mode === 'offset');
++    $('tabCursor').classList.toggle('active', mode === 'cursor');
++    $('paginationBar').style.display = mode === 'offset' ? 'flex' : 'none';
++    $('cursorMoreWrap').style.display = mode === 'cursor' ? 'flex' : 'none';
++    $('sortSelect').disabled = mode === 'cursor';
++    $('modeNote').textContent = mode === 'cursor'
++      ? '커서 모드는 ID 내림차순 고정입니다. 검색어 변경 시 처음부터 불러옵니다.'
++      : '최신순: ID 내림차순 · 오래된순: ID 오름차순';
++  }
++  function writeUrl(push = false) {
++    const url = new URL(location.href);
++    const q = new URLSearchParams({ page: state.page, limit: state.limit, sort: state.sort });
++    if (state.search) q.set('search', state.search);
++    url.search = q.toString();
++    if (url.href !== location.href) history[push ? 'pushState' : 'replaceState']({}, '', url);
++  }
++  function switchMode(newMode) {
++    cancelPending();
++    mode = newMode;
++    state.search = $('searchInput').value.trim();
++    resetList();
++    updateMode();
++    loadData(mode === 'offset');
++  }
+   async function loadData(pushHistory = false) {
+-    if (currentAbortController) {
+-      currentAbortController.abort(); // 이전 진행 요청 즉시 취소
+-    }
+-    currentAbortController = new AbortController();
+-    const { signal } = currentAbortController;
+-
++    invalidateRequest();
++    const version = requestVersion;
++    const controller = new AbortController();
++    currentAbortController = controller;
++    // 오프셋의 limit은 유지하되 커서는 API 상한인 50개에 맞춥니다.
++    const snapshot = { ...state, mode, limit: mode === 'cursor' ? Math.min(state.limit, 50) : state.limit };
++    loading = true;
++    $('btnMore').disabled = true;
++    $('status').textContent = '불러오는 중…';
++    const q = new URLSearchParams({ limit: snapshot.limit });
++    if (snapshot.search) q.set('search', snapshot.search);
++    if (snapshot.mode === 'offset') {
++      q.set('page', snapshot.page);
++      q.set('sort', snapshot.sort);
++      writeUrl(pushHistory);
++    } else if (snapshot.cursor !== null) q.set('cursor', snapshot.cursor);
++    const endpoint = `/api/posts${snapshot.mode === 'cursor' ? '/cursor' : ''}?${q}`;
++    $('inspectUrl').textContent = `GET ${endpoint}`;
+     const t0 = performance.now();
+-    let endpoint = '';
+-
+-    if (mode === 'offset') {
+-      const q = new URLSearchParams({
+-        page: state.page,
+-        limit: state.limit,
+-        sort: state.sort
+-      });
+-      if (state.search) q.set('search', state.search);
+-      endpoint = `/api/posts?${q.toString()}`;
+-
+-      if (pushHistory) {
+-        window.history.pushState({}, '', `?${q.toString()}`);
+-      }
+-    } else {
+-      const q = new URLSearchParams({ limit: state.limit });
+-      if (state.cursor) q.set('cursor', state.cursor);
+-      endpoint = `/api/posts/cursor?${q.toString()}`;
+-    }
+-
+-    document.getElementById('inspectUrl').textContent = `GET ${endpoint}`;
+-
+     try {
+-      const res = await fetch(endpoint, { signal });
++      const res = await fetch(endpoint, { signal: controller.signal });
++      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+       const json = await res.json();
+-      const t1 = performance.now();
+-
+-      document.getElementById('latencyBadge').textContent = `${(t1 - t0).toFixed(2)}ms`;
+-      document.getElementById('inspectJson').textContent = JSON.stringify(json, null, 2);
+-
+-      // SQL 미리보기 업데이트
+-      updateSqlInspector();
+-
+-      if (mode === 'offset') {
++      // 이전 요청이 늦게 끝나도 현재 화면을 덮어쓰지 않도록 확인합니다.
++      if (controller.signal.aborted || version !== requestVersion) return;
++      $('latencyBadge').textContent = `${(performance.now() - t0).toFixed(2)}ms`;
++      $('inspectJson').textContent = JSON.stringify(json, null, 2);
++      if (snapshot.mode === 'offset') {
++        state.page = json.meta.page;
++        state.limit = json.meta.limit;
++        state.sort = json.meta.sort;
++        $('sortSelect').value = state.sort;
++        writeUrl();
+         renderTable(json.items);
+         renderPagination(json.meta.page, json.meta.totalPages);
++        $('status').textContent = `검색 결과 ${json.meta.totalCount}건 · ${json.meta.page}/${json.meta.totalPages}페이지`;
+       } else {
+-        if (!state.cursor) cursorPosts = [];
+         cursorPosts = [...cursorPosts, ...json.items];
+         state.cursor = json.meta.nextCursor;
+         state.hasNext = json.meta.hasNext;
+         renderTable(cursorPosts);
+-        document.getElementById('btnMore').disabled = !state.hasNext;
+-        document.getElementById('btnMore').textContent = state.hasNext ? '다음 10개 더 불러오기 (Keyset)' : '더 이상 글이 없습니다';
++        $('status').textContent = `${cursorPosts.length}건 표시 · ${state.hasNext ? '다음 결과 있음' : '마지막 결과'}`;
+       }
++      updateSqlInspector(snapshot);
+     } catch (err) {
+       if (err.name === 'AbortError') {
+         console.log('[AbortController] 이전 비동기 요청이 정상 취소되었습니다.');
+-      } else {
+-        console.error('Fetch error:', err);
++      } else if (version === requestVersion) {
++        $('status').textContent = `요청 실패: ${err.message}. 조회 버튼으로 다시 시도하세요.`;
+       }
+-    }
+-  }
+-
++    } finally {
++      if (version === requestVersion) {
++        loading = false;
++        $('btnMore').disabled = !state.hasNext;
++        $('btnMore').textContent = state.hasNext ? `다음 ${snapshot.limit}개 더 불러오기 (Keyset)` : '더 이상 글이 없습니다';
++      }
++    }
++  }
+   function renderTable(items) {
+-    const tb = document.getElementById('tableBody');
+-    if (!items || items.length === 0) {
+-      tb.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:#8d9aaf;">검색 조건에 일치하는 글이 없습니다.</td></tr>';
++    const tb = $('tableBody');
++    tb.replaceChildren();
++    if (!items.length) {
++      const td = document.createElement('td');
++      td.colSpan = 5;
++      td.textContent = '검색 조건에 일치하는 글이 없습니다.';
++      const tr = document.createElement('tr');
++      tr.append(td);
++      tb.append(tr);
+       return;
+     }
+-    tb.innerHTML = items.map(p => `
+-      <tr>
+-        <td style="color:#0066cc; font-weight:700;">${p.id}</td>
+-        <td style="font-weight:600;">${p.title}</td>
+-        <td>${p.author}</td>
+-        <td style="color:#0066cc; font-weight:600;">${p.views.toLocaleString()}</td>
+-        <td style="color:#8d9aaf;">${p.createdAt}</td>
+-      </tr>
+-    `).join('');
+-  }
+-
++    for (const post of items) {
++      const tr = document.createElement('tr');
++      for (const value of [post.id, post.title, post.author, post.views.toLocaleString(), post.createdAt]) {
++        const td = document.createElement('td');
++        td.textContent = value;
++        tr.append(td);
++      }
++      tb.append(tr);
++    }
++  }
+   function renderPagination(page, totalPages) {
+-    const bar = document.getElementById('paginationBar');
+-    let html = '';
+-    const start = Math.max(1, page - 3);
+-    const end = Math.min(totalPages, page + 3);
+-
+-    if (page > 1) {
+-      html += `<button class="page-btn" onclick="goToPage(1)">«</button>`;
+-      html += `<button class="page-btn" onclick="goToPage(${page - 1})">‹</button>`;
+-    }
+-    for (let i = start; i <= end; i++) {
+-      const act = (i === page) ? 'active' : '';
+-      html += `<button class="page-btn ${act}" onclick="goToPage(${i})">${i}</button>`;
+-    }
+-    if (page < totalPages) {
+-      html += `<button class="page-btn" onclick="goToPage(${page + 1})">›</button>`;
+-      html += `<button class="page-btn" onclick="goToPage(${totalPages})">»</button>`;
+-    }
+-    bar.innerHTML = html;
+-  }
+-
+-  function goToPage(p) {
+-    state.page = p;
++    const bar = $('paginationBar');
++    bar.replaceChildren();
++    const add = (label, target) => {
++      const btn = document.createElement('button');
++      btn.className = `page-btn${target === page ? ' active' : ''}`;
++      btn.textContent = label;
++      btn.onclick = () => goToPage(target);
++      bar.append(btn);
++    };
++    if (page > 1) { add('«', 1); add('‹', page - 1); }
++    for (let n = Math.max(1, page - 3); n <= Math.min(totalPages, page + 3); n++) add(n, n);
++    if (page < totalPages) { add('›', page + 1); add('»', totalPages); }
++  }
++  function goToPage(page) {
++    cancelPending();
++    if (state.search !== $('searchInput').value.trim()) { applySearch(); return; }
++    state.page = page;
+     loadData(true);
+   }
+-
+   function loadMoreCursor() {
+-    if (state.hasNext) {
+-      loadData(false);
+-    }
+-  }
+-
++    if (!loading && state.hasNext) loadData();
++  }
+   function applySearch() {
+-    state.search = document.getElementById('searchInput').value.trim();
+-    state.page = 1;
+-    state.cursor = null;
++    cancelPending();
++    state.search = $('searchInput').value.trim();
++    resetList();
+     loadData(true);
+   }
+-
+-  function updateSqlInspector() {
+-    const sqlBox = document.getElementById('inspectSql');
+-    if (mode === 'offset') {
+-      const offset = (state.page - 1) * state.limit;
+-      let sortClause = 'created_at DESC, id DESC';
+-      if (state.sort === 'views') sortClause = 'views DESC, id DESC';
+-      else if (state.sort === 'oldest') sortClause = 'created_at ASC, id ASC';
+-
+-      let whereClause = state.search ? `WHERE (title LIKE '%${state.search}%' OR content LIKE '%${state.search}%') ` : '';
+-      sqlBox.textContent = `SELECT id, title, author, views, created_at FROM posts ${whereClause}ORDER BY ${sortClause} LIMIT ${state.limit} OFFSET ${offset};`;
+-    } else {
+-      let whereClause = state.cursor ? `WHERE id < ${state.cursor} ` : '';
+-      sqlBox.textContent = `SELECT id, title, author, views, created_at FROM posts ${whereClause}ORDER BY id DESC LIMIT ${state.limit + 1};`;
+-    }
+-  }
+-
+-  // 300ms 디바운스 실시간 검색 인풋 이벤트
+-  document.getElementById('searchInput').addEventListener('input', (e) => {
+-    clearTimeout(debounceTimer);
+-    debounceTimer = setTimeout(() => {
+-      state.search = e.target.value.trim();
+-      state.page = 1;
+-      state.cursor = null;
+-      loadData(true);
+-    }, 300);
++  function updateSqlInspector(snapshot) {
++    const clauses = [];
++    if (snapshot.search) clauses.push('(title LIKE ? OR content LIKE ?)');
++    if (snapshot.mode === 'cursor' && snapshot.cursor !== null) clauses.push('id < ?');
++    const where = clauses.length ? `WHERE ${clauses.join(' AND ')} ` : '';
++    const order = snapshot.mode === 'cursor' || snapshot.sort === 'latest' ? 'id DESC'
++      : snapshot.sort === 'oldest' ? 'id ASC' : 'views DESC, id DESC';
++    const paging = snapshot.mode === 'cursor' ? `LIMIT ${snapshot.limit + 1}`
++      : `LIMIT ${state.limit} OFFSET ${(state.page - 1) * state.limit}`;
++    $('inspectSql').textContent = `-- 설명용: 실제 처리는 JavaScript 배열
++SELECT * FROM posts ${where}ORDER BY ${order} ${paging};`;
++  }
++  function scheduleSearch() {
++    cancelPending();
++    resetList();
++    $('btnMore').disabled = true;
++    $('status').textContent = '입력 대기 중…';
++    if (!isComposing) debounceTimer = setTimeout(applySearch, 300);
++  }
++  $('searchInput').addEventListener('compositionstart', () => {
++    isComposing = true;
++    scheduleSearch();
+   });
+-
+-  document.getElementById('sortSelect').addEventListener('change', (e) => {
+-    state.sort = e.target.value;
+-    state.page = 1;
+-    state.cursor = null;
+-    loadData(true);
++  $('searchInput').addEventListener('compositionend', () => {
++    isComposing = false;
++    scheduleSearch();
+   });
+-
+-  // 뒤로 가기(popstate) 이벤트 처리
+-  window.addEventListener('popstate', () => {
+-    const params = new URLSearchParams(window.location.search);
+-    state.page = parseInt(params.get('page'), 10) || 1;
+-    state.sort = params.get('sort') || 'latest';
+-    state.search = params.get('search') || '';
+-
+-    document.getElementById('searchInput').value = state.search;
+-    document.getElementById('sortSelect').value = state.sort;
+-    loadData(false);
++  $('searchInput').addEventListener('input', scheduleSearch);
++  $('sortSelect').addEventListener('change', () => {
++    state.sort = sorts.includes($('sortSelect').value) ? $('sortSelect').value : 'latest';
++    applySearch();
+   });
+-
+-  // 초기 로드 시 주소창 파라미터 복원
+-  window.addEventListener('DOMContentLoaded', () => {
+-    const params = new URLSearchParams(window.location.search);
+-    state.page = parseInt(params.get('page'), 10) || 1;
+-    state.sort = params.get('sort') || 'latest';
+-    state.search = params.get('search') || '';
+-
+-    document.getElementById('searchInput').value = state.search;
+-    document.getElementById('sortSelect').value = state.sort;
+-    loadData(false);
+-  });
++  function restoreUrl() {
++    cancelPending();
++    mode = 'offset';
++    const params = new URLSearchParams(location.search);
++    resetList();
++    state.page = positiveInt(params.get('page'), 1);
++    state.limit = positiveInt(params.get('limit'), 10, 100);
++    state.sort = sorts.includes(params.get('sort')) ? params.get('sort') : 'latest';
++    state.search = (params.get('search') || '').trim();
++    $('searchInput').value = state.search;
++    $('sortSelect').value = state.sort;
++    updateMode();
++    loadData();
++  }
++  window.addEventListener('popstate', restoreUrl);
++  window.addEventListener('DOMContentLoaded', restoreUrl);
+ </script>
+ </body>
+ </html>
+--- original/README.md
++++ improved/README.md
+@@ -1,44 +1,83 @@
+-# 09주차 실습 패키지 · 대용량 검색·정렬·페이징 심화 (3학년 전공)
++# 검색·정렬·페이지네이션 게시판
+ 
+-본 실습 패키지는 웹서비스설계 9주차 (3시간 마스터) 강의에서 다루는 **1,000건 대용량 데이터셋 기반 검색, 정렬 보안, 오프셋 vs 커서 페이지네이션, 프론트엔드 비동기 최적화**의 실제 구동 코드입니다.
++웹서비스설계 9주차 예제를 수정한 실습이다. 1,000건의 인메모리 데이터를 사용하며 실제 DB는 연결하지 않는다.
+ 
+----
++## 실행
+ 
+-## 🚀 빠른 실행 방법
++Node.js 20 이상이 필요하다.
+ 
+ ```bash
+-# 1. 의존성 설치
+-npm install express
+-
+-# 2. 백엔드 서버 구동
+-node server.js
+-
+-# 3. 브라우저 접속
+-# http://localhost:3000
++npm ci
++npm start
+ ```
+ 
+----
++http://localhost:3000 접속. 서버 종료는 Ctrl+C.
+ 
+-## 📂 파일 구성 및 엔지니어링 특징
++## 기존 코드에서 바꾼 부분
+ 
+-### 1. `server.js` (Express 백엔드 API)
+-- **대량 데이터셋**: 1,000건의 인메모리 게시글 데이터 자동 시드.
+-- **방어적 파라미터 파싱**: `parseInt(..., 10)` 기수 명시, 음수 및 0 페이지 차단, `Math.min(..., 100)` 대량 조회 공격 방어.
+-- **ORDER BY 화이트리스트 보안**: `SORT_WHITELIST` 객체 매핑으로 SQL Injection 원천 봉쇄 및 `id DESC` 동점자 방지 2차 정렬 결합.
+-- **2대 페이징 API 제공**:
+-  - `GET /api/posts`: 오프셋 기반 페이징 (`LIMIT` / `OFFSET`, 표준 `meta` Envelope 응답)
+-  - `GET /api/posts/cursor`: 고성능 커서 기반 페이징 (`WHERE id < ? ORDER BY id DESC LIMIT 10`, `limit + 1` 패턴으로 `COUNT(*)` 제거)
++- 정렬 키를 `Object.hasOwn`으로 검사해 `__proto__`, `constructor` 등 상속 속성도 차단한다.
++- 커서 API에 제목·본문 검색을 추가했다. 검색·커서 조건 적용 후 `limit + 1`개를 확인한다.
++- 커서는 ID 내림차순으로 고정하고 정렬 선택을 비활성화했다. 검색어를 바꾸면 누적 목록과 커서를 초기화한다.
++- 입력 즉시 이전 요청을 취소하고 요청 번호도 확인해 늦게 도착한 응답을 차단한다. 수동 조회 시 대기 중인 디바운스 타이머를 취소한다.
++- URL 복원 함수를 공통으로 사용하고 서버가 보정한 페이지도 화면과 주소에 반영한다.
++- 조회수 동점 테스트를 위해 데이터를 고정하고 작성일 순서를 ID와 맞췄다. 화면의 SQL은 실제 실행 쿼리가 아닌 설명용으로 표시한다.
++- 커서 수량 표시를 API 상한과 맞추고, 한글 조합이 끝난 뒤 검색하도록 처리했다.
+ 
+-### 2. `index.html` (SPA 프론트엔드 & 실시간 DevTools 검사기)
+-- **탭 모드 전환**: [오프셋 번호 페이징] ↔ [커서 기반 무한 스크롤] 즉시 비교.
+-- **실시간 디바운스 (300ms)**: 연속 타이핑 시 불필요한 API 요청 폭격 방지.
+-- **AbortController 비동기 방어**: 새 검색어 입력 시 이전 진행 중인 fetch 요청을 즉각 취소하여 Race Condition 버그 예방.
+-- **브라우저 히스토리 동기화**: `URLSearchParams`와 `history.pushState` 및 `window.onpopstate` 이벤트로 뒤로 가기 / 새로고침 상태 복원 지원.
++원본은 `docs/original/`, 줄 단위 변경 내역은 `docs/changes.diff`에 있다.
+ 
+----
++## API와 동작 기준
+ 
+-## 🎯 3학년 전공 실습 과제 체크리스트
++```text
++GET /api/posts?page=1&limit=10&sort=latest&search=Redis
++GET /api/posts/cursor?limit=10&cursor=950&search=Redis
++```
+ 
+-1. **정렬 보안**: `server.js`에서 허용되지 않은 정렬 키(예: `sort=views; DROP TABLE--`) 입력 시 안전하게 기본값(`latest`)으로 격리되는지 검증하세요.
+-2. **커서 페이징**: 100페이지 이상 스킵 시 오프셋 방식의 한계와 커서 방식의 속도 차이를 DevTools의 `X-Response-Time` 헤더로 측정해 보세요.
+-3. **Race Condition 실험**: `index.html`에서 빠른 타이핑 시 콘솔에 `[AbortController] 이전 비동기 요청이 정상 취소되었습니다` 로그가 정상 출력되는지 확인하세요.
++최신순은 ID 내림차순, 오래된순은 ID 오름차순, 조회순은 조회수 내림차순·동점 ID 내림차순이다. 검색은 제목·본문의 대소문자를 구분하지 않는 부분 일치다.
++
++page와 limit은 양의 안전 정수만 허용한다. 잘못된 page는 1, 잘못된 limit은 10이다. limit 상한은 오프셋 100, 커서 50이다. 초과 page는 마지막 페이지로 보정한다. 빈 결과는 `items: []`, `page: 1`, `totalPages: 1`, `hasNext: false`로 처리한다.
++
++커서의 nextCursor는 반환한 마지막 게시글 ID이며, 마지막 페이지 여부는 hasNext로 판단한다. 오프셋의 검색어·정렬·페이지·limit을 URL에 저장한다. 커서 진행 위치는 저장하지 않으며 새로고침이나 popstate는 주소의 오프셋 상태로 돌아간다.
++
++## 테스트
++
++Google Chrome이 설치되어 있어야 한다. 기존 서버를 종료하고 실행한다. 테스트가 3000 포트에서 서버를 시작하고 종료한다.
++
++```bash
++npm test
++```
++
++현재 13개 테스트로 검색·정렬·잘못된 입력값·커서 전체 순회·URL 복원·디바운스·취소·한글 조합·오류 재시도를 검사한다. 실행 결과와 캡처는 `docs/`에 저장된다.
++
++Chrome이 없는 환경은 `npx playwright install chromium` 실행 후 `playwright.config.js`의 `channel: 'chrome'`을 제거한다. `tests/baseline.cjs`는 원본 비교용 별도 스크립트이며 기본 테스트에는 포함되지 않는다.
++
++직접 확인할 때는 다음 순서로 비교할 수 있다.
++
++1. 오프셋 3페이지에서 Redis 검색, 조회순 변경 후 1페이지인지 확인한다.
++2. 상세 본문을 검색해 제목에 없는 단어도 검색되는지 확인한다.
++3. 커서에서 Redis를 검색하고 마지막까지 더 보기를 누른다. 83건과 버튼 비활성화를 확인한다.
++4. 검색어를 바꾸고 새로고침·뒤로 가기를 실행해 입력창·정렬·결과를 비교한다.
++5. DevTools Network에서 빠른 연속 입력의 요청 수를 확인한다. Slow 3G에서 검색어를 바꿔 취소와 최종 결과를 확인한다.
++
++## 보고서와 제출 자료
++
++- [실습 보고서 PDF](docs/report.pdf) · [Markdown](docs/report.md)
++- [테스트 캡처 목록](docs/captures/README.md)
++- [최종 테스트 결과](docs/test-results.json)
++
++오프셋·커서에 적합한 화면, 디바운스·요청 취소의 역할, limit+1 원리, offset·totalPages 계산식은 보고서 5절에 정리했다. 응답 시간은 관찰값이며 DB 인덱스 성능을 입증하는 자료로 사용하지 않는다.
++
++보고서 내용은 `docs/report-template.md`에서 수정한다. 테스트 통과 후 Python 3과 Chrome이 설치된 환경에서 다음 명령으로 PDF·HTML·결과 요약 캡처를 갱신한다.
++
++```bash
++node scripts/export-report.cjs
++```
++
++테스트 수·환경·응답 시간·한글 조합 대기 시간은 실제 결과에서 읽는다. 테스트 내용이나 데이터가 달라지면 템플릿의 설명과 기대값도 함께 수정한다.
++
++## AI 활용
++
++AI를 코드 분석·수정, 테스트 작성·실행, 문서 정리에 사용했다. 기록된 결과는 로컬 API와 Chrome 자동 테스트로 확인했다. 이 문서의 테스트 결과는 자동 테스트 기준이다.
++
++제출 마감은 **2026-11-15(일) 23:59 KST**다. GitHub에는 코드·README·lockfile·tests·scripts·docs를 올리고 `node_modules`는 제외한다. GitHub 링크는 LMS 온라인 작성란에, 보고서와 캡처는 파일 제출란에 제출한다. LMS 제출은 별도로 진행한다.
++
++GitHub 저장소: https://github.com/jooho-le/WebServiceDesign_-practice2

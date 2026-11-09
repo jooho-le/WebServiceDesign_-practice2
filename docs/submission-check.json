@@ -1,0 +1,17 @@
+{
+  "installation": "npm ci --offline --cache /tmp/week09-npm-cache --no-audit --no-fund",
+  "freshNodeModules": true,
+  "passed": 13,
+  "failed": 0,
+  "skipped": 0,
+  "sourceSha256": {
+    "index.html": "4db1399836fdf48c0b21b21b02373299904d76a8b92f81bfdcf90f7fa9536913",
+    "server.js": "e939b75aa4ed96acb71df0af569e8317db61b714cfca25be1bce268c9ee6ac8d",
+    "package.json": "2012c426473d41ae479999709b93bbcec3edf942fff9b27b757b999a4a247ebc",
+    "package-lock.json": "2a4d56f1187b17f57bc9528c48248ecca026136dd856bdca0db20ff01782d215",
+    "playwright.config.js": "e930ea567569c0f52ea7ffafd5125491abaad3cd7664a7570dcf0e1a034b6c77",
+    "tests/board.spec.js": "efbef61fc6b6ed446e926183708ecfbe792608c09671d26df06f48c5b00f310b"
+  },
+  "pdfVerified": true,
+  "pdfPages": 7
+}

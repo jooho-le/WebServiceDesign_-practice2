@@ -1,0 +1,30 @@
+[
+  {
+    "search": "",
+    "count": 1000,
+    "pages": 20,
+    "duplicates": 0,
+    "missing": 0
+  },
+  {
+    "search": "Redis",
+    "count": 83,
+    "pages": 2,
+    "duplicates": 0,
+    "missing": 0
+  },
+  {
+    "search": "상세 본문",
+    "count": 1000,
+    "pages": 20,
+    "duplicates": 0,
+    "missing": 0
+  },
+  {
+    "search": "NO_MATCH_987654",
+    "count": 0,
+    "pages": 1,
+    "duplicates": 0,
+    "missing": 0
+  }
+]

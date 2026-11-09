@@ -1,0 +1,16 @@
+{
+  "delayedResponseMs": 1200,
+  "finalSearch": "AbortController",
+  "errors": [],
+  "logs": [
+    "[AbortController] 이전 비동기 요청이 정상 취소되었습니다."
+  ],
+  "failed": [
+    {
+      "url": "http://127.0.0.1:3000/api/posts?limit=10&search=Redis&page=1&sort=latest",
+      "error": {
+        "errorText": "net::ERR_ABORTED"
+      }
+    }
+  ]
+}

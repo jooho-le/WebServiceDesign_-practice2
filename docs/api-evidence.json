@@ -1,0 +1,44 @@
+{
+  "count": 1000,
+  "unique": 1000,
+  "last": {
+    "page": 100,
+    "sort": "latest",
+    "limit": 10,
+    "totalCount": 1000,
+    "totalPages": 100,
+    "hasNext": false,
+    "hasPrev": true,
+    "executionTimeMs": 0.11
+  },
+  "empty": {
+    "page": 1,
+    "sort": "latest",
+    "limit": 10,
+    "totalCount": 0,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false,
+    "executionTimeMs": 0.21
+  },
+  "timing": [
+    {
+      "path": "/api/posts?page=1",
+      "clientMs": 0.82,
+      "serverMs": 0.1,
+      "responseTimeHeader": "0.10ms"
+    },
+    {
+      "path": "/api/posts?page=100",
+      "clientMs": 0.8,
+      "serverMs": 0.11,
+      "responseTimeHeader": "0.11ms"
+    },
+    {
+      "path": "/api/posts/cursor?cursor=11",
+      "clientMs": 0.77,
+      "serverMs": 0.13,
+      "responseTimeHeader": "0.13ms"
+    }
+  ]
+}

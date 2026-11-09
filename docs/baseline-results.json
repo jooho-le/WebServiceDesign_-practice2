@@ -1,0 +1,24 @@
+[
+  {
+    "test": "sort=latest",
+    "status": 200
+  },
+  {
+    "test": "sort=__proto__",
+    "status": 500
+  },
+  {
+    "test": "sort=constructor",
+    "status": 200
+  },
+  {
+    "test": "cursor no-match search",
+    "expected": 0,
+    "actual": 10
+  },
+  {
+    "test": "cursor sort disabled",
+    "expected": true,
+    "actual": false
+  }
+]
